@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DWS Auto Reply</title>
+  <style>
+    :root{color-scheme:dark;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0b1020;color:#e8edf7}
+    *{box-sizing:border-box}body{max-width:1180px;margin:0 auto;padding:24px}h1{font-size:24px;margin:0 0 18px}h2{font-size:17px;margin:0 0 12px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}.card{background:#151c2d;border:1px solid #2b3852;border-radius:12px;padding:16px;margin-bottom:14px}
+    .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:6px;margin-bottom:11px}
+    label{font-size:13px;color:#aebbd0}input,select,textarea{width:100%;border:1px solid #394966;background:#0d1424;color:#eef3fb;border-radius:7px;padding:9px;font:inherit}input[type=checkbox]{width:auto}
+    textarea{min-height:90px;resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}#yaml{min-height:52vh}
+    button{border:0;border-radius:7px;padding:9px 14px;margin:4px 6px 4px 0;background:#3478f6;color:white;cursor:pointer}button.secondary{background:#44516a}button.warn{background:#b7791f}button.danger{background:#b4232f}
+    .ok{color:#62d99b}.bad{color:#ff7b86}.warnText{color:#ffd166}.muted{color:#93a1b8;font-size:12px}pre{white-space:pre-wrap;word-break:break-word;max-height:360px;overflow:auto;background:#0d1424;padding:10px;border-radius:7px}
+    #notice{position:sticky;top:8px;z-index:2;padding:10px 12px;background:#222c42;border-radius:8px;min-height:20px}details summary{cursor:pointer;font-weight:600;margin-bottom:12px}.actions{display:flex;flex-wrap:wrap;align-items:center}
+  </style>
+</head>
+<body>
+  <h1>DWS Auto Reply <span class="muted">localhost 控制台</span></h1>
+  <p id="notice">正在读取状态…</p>
+  <div class="grid">
+    <section class="card"><h2>运行状态</h2><div id="sendState">读取中…</div><div id="listenerState" class="muted"></div></section>
+    <section class="card"><h2>快捷控制</h2><div class="actions"><button class="warn" onclick="pauseReplies()">暂停回复</button><button onclick="resumeReplies()">恢复回复</button><button class="secondary" onclick="restartService()">优雅重启</button><button class="danger" onclick="disableSending()">关闭真实发送</button></div></section>
+  </div>
+
+  <section class="card">
+    <h2>发送与私聊</h2>
+    <div class="row">
+      <div class="field"><label><input id="sendEnabled" type="checkbox"> 真实发送</label></div>
+      <div class="field"><label>真实发送范围</label><select id="sendScope"><option value="disabled">关闭</option><option value="allowlist">仅安全白名单</option><option value="all">全部已启用范围</option></select></div>
+      <div class="field"><label>私聊模式</label><select id="privateMode"><option value="all">全部启用（黑名单除外）</option><option value="whitelist">仅白名单</option><option value="disabled">关闭私聊</option></select></div>
+      <div class="field"><label>私聊延迟</label><input id="privateDelay" placeholder="0s"></div>
+      <div class="field"><label>非白名单每日上限</label><input id="privateMax" type="number" min="1" placeholder="留空为无限"></div>
+      <div class="field"><label>白名单每日上限</label><input id="privateWhiteMax" type="number" min="1" placeholder="留空为无限"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>私聊白名单（每行一个用户 ID）</label><textarea id="privateWhitelist"></textarea></div>
+      <div class="field"><label>私聊黑名单（每行一个用户 ID）</label><textarea id="privateBlacklist"></textarea></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>群聊</h2>
+    <div class="row">
+      <div class="field"><label>群聊模式</label><select id="groupMode"><option value="all">所有群，仅明确 @</option><option value="whitelist">仅白名单群</option><option value="disabled">关闭群聊</option></select></div>
+      <div class="field"><label>群聊延迟</label><input id="groupDelay" placeholder="10m"></div>
+      <div class="field"><label><input id="ignoreAtAll" type="checkbox"> 忽略 @所有人</label></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>群白名单（conversation ID # 备注）</label><textarea id="groupWhitelist"></textarea></div>
+      <div class="field"><label>群黑名单（每行一个 conversation ID）</label><textarea id="groupBlacklist"></textarea></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>群聊表情回应 <span class="muted">热更新</span></h2>
+    <div class="row">
+      <div class="field"><label><input id="reactionEnabled" type="checkbox"> 被 @ 时贴表情</label></div>
+      <div class="field"><label>表情模式</label><select id="reactionMode"><option value="text_emotion">自定义文字表情</option><option value="emoji">钉钉内置 Emoji</option></select></div>
+      <div class="field"><label>内置 Emoji 兜底</label><input id="fallbackEmoji" placeholder="收到"></div>
+      <div class="field"><label>文字表情兜底名称</label><input id="fallbackTextEmotion" placeholder="收到，我认真看看"></div>
+      <div class="field"><label>DWS 超时（秒）</label><input id="reactionTimeout" type="number" min="1" max="30"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>使用指定文字表情的发送人 ID（推荐，每行一个 openDingTalkId）</label><textarea id="stringSenderIds"></textarea></div>
+      <div class="field"><label>昵称兜底（每行一个通讯录昵称或群昵称）</label><textarea id="stringSenderNames"></textarea></div>
+    </div>
+    <div class="field"><label>指定发送人的文字表情名称</label><input id="targetedTextEmotion" placeholder="特别回应"></div>
+    <div class="field"><label>文字表情清单（每行：名称 | 显示文字 | emotionId | backgroundId）</label><textarea id="textEmotions" spellcheck="false"></textarea></div>
+    <p class="muted">保存后约 2 秒内生效，不会重启监听进程。文字表情模式下，兜底名称必须存在于清单中。</p>
+  </section>
+
+  <section class="card">
+    <h2>身份与 Personality</h2>
+    <div class="row">
+      <div class="field"><label>回复模型</label><input id="codexModel" placeholder="example-model"></div>
+      <div class="field"><label>推理强度</label><select id="reasoningEffort"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="xhigh">XHigh</option><option value="max">Max</option><option value="ultra">Ultra</option></select></div>
+    </div>
+    <p class="muted">模型与推理强度保存后热更新，只影响之后新生成的回复。</p>
+    <div class="row"><div class="field"><label>AI 名称</label><input id="identityName"></div><div class="field"><label>所有者名称</label><input id="ownerName"></div></div>
+    <div class="field"><label>自我介绍</label><textarea id="selfIntro"></textarea></div>
+    <div class="row"><div class="field"><label>私聊 AI 后缀</label><input id="privateSuffix"></div><div class="field"><label>群聊 AI 后缀</label><input id="groupSuffix"></div></div>
+    <div class="field"><label>Personality Prompt</label><textarea id="personality"></textarea></div>
+    <div class="field"><label>自定义 System Prompt（不可覆盖底层安全约束）</label><textarea id="customSystem"></textarea></div>
+    <div class="field"><label>伦理梗限制 Prompt（不可被其他 Prompt 覆盖）</label><textarea id="ethicsBoundary"></textarea></div>
+    <div class="field"><label>伦理梗固定拒绝语</label><input id="ethicsRefusal"></div>
+  </section>
+
+  <section class="card">
+    <h2>只读代码仓库</h2>
+    <div class="row"><div class="field"><label>本地 Git 仓库路径</label><input id="repoPath"></div><div class="field"><label>远端名称</label><input id="repoRemote" placeholder="origin"></div><div class="field"><label><input id="allowFetch" type="checkbox"> 指定分支时允许按需 fetch</label></div></div>
+    <div class="field"><label>可读目录白名单（每行一个相对路径，`.` 表示全仓）</label><textarea id="allowedPaths"></textarea></div>
+  </section>
+
+  <section class="card"><button onclick="savePreferences()">校验并热更新基础配置</button><button class="secondary" onclick="loadAll()">放弃修改并重新读取</button><p class="muted">普通配置保存后约 2 秒内生效；监听范围变化会自动重连对应 DWS consumer。</p></section>
+
+  <section class="card"><details><summary>高级 YAML</summary><textarea id="yaml" spellcheck="false"></textarea><button onclick="saveYaml()">校验并保存 YAML</button></details></section>
+  <div class="grid"><section class="card"><h2>最近任务</h2><pre id="tasks">读取中…</pre></section><section class="card"><h2>最近日志</h2><pre id="logs">读取中…</pre></section></div>
+
+<script>
+const writeHeaders={'X-DWS-Auto-Reply':'1','Content-Type':'application/json'};
+let originalSafety={};
+const el=id=>document.getElementById(id);
+const lines=id=>el(id).value.split(/\r?\n/).map(v=>v.trim()).filter(Boolean).map(v=>v.split(/\s+#\s*/,1)[0].trim());
+const show=(text,bad=false)=>{el('notice').textContent=text;el('notice').className=bad?'bad':'ok'};
+function groupRows(){return el('groupWhitelist').value.split(/\r?\n/).map(v=>v.trim()).filter(Boolean).map(v=>{const parts=v.split(/\s+#\s*/,2);return {conversation_id:parts[0].trim(),name:(parts[1]||parts[0]).trim()}})}
+function textEmotionRows(){return el('textEmotions').value.split(/\r?\n/).map(v=>v.trim()).filter(Boolean).map((v,index)=>{const parts=v.split('|').map(part=>part.trim());if(parts.length!==4||parts.some(part=>!part))throw new Error(`文字表情第 ${index+1} 行格式应为：名称 | 显示文字 | emotionId | backgroundId`);return {name:parts[0],text:parts[1],emotion_id:parts[2],background_id:parts[3]}})}
+function fill(p){
+  originalSafety={...p.safety}; el('sendEnabled').checked=p.safety.send_enabled;el('sendScope').value=p.safety.send_scope;
+  el('privateMode').value=p.private_chat.mode;el('privateDelay').value=p.private_chat.delay;el('privateMax').value=p.private_chat.max_auto_replies??'';el('privateWhiteMax').value=p.private_chat.whitelist_max_auto_replies??'';
+  el('privateWhitelist').value=(p.private_chat.whitelist||[]).join('\n');el('privateBlacklist').value=(p.private_chat.blacklist||[]).join('\n');
+  el('groupMode').value=p.groups.mode;el('groupDelay').value=p.groups.delay;el('ignoreAtAll').checked=p.groups.ignore_at_all;
+  el('groupWhitelist').value=(p.groups.whitelist||[]).map(v=>v.conversation_id+' # '+v.name).join('\n');el('groupBlacklist').value=(p.groups.blacklist||[]).join('\n');
+  const reaction=p.group_reaction||{};el('reactionEnabled').checked=!!reaction.enabled;el('reactionMode').value=reaction.mode||'emoji';el('fallbackEmoji').value=reaction.fallback_emoji||'收到';el('fallbackTextEmotion').value=reaction.fallback_text_emotion||'';el('targetedTextEmotion').value=reaction.targeted_text_emotion||'';el('reactionTimeout').value=reaction.timeout_seconds??10;
+  el('stringSenderIds').value=(reaction.string_sender_ids||[]).join('\n');el('stringSenderNames').value=(reaction.string_sender_names||[]).join('\n');
+  el('textEmotions').value=(reaction.text_emotions||[]).map(v=>[v.name,v.text,v.emotion_id,v.background_id].join(' | ')).join('\n');
+  el('identityName').value=p.identity.name;el('ownerName').value=p.identity.owner_name;el('selfIntro').value=p.identity.self_introduction;el('privateSuffix').value=p.identity.private_ai_suffix;el('groupSuffix').value=p.identity.group_ai_suffix;
+  el('codexModel').value=p.codex.model;el('reasoningEffort').value=p.codex.reasoning_effort;
+  el('personality').value=p.prompts.personality;el('customSystem').value=p.prompts.custom_system;el('ethicsBoundary').value=p.prompts.ethics_boundary||'';el('ethicsRefusal').value=p.prompts.ethics_refusal||'';
+  el('repoPath').value=p.repository.path;el('allowedPaths').value=(p.repository.allowed_paths||[]).join('\n');el('repoRemote').value=p.repository.remote;el('allowFetch').checked=p.repository.allow_fetch;
+}
+function collect(){return {
+  safety:{send_enabled:el('sendEnabled').checked,send_scope:el('sendScope').value},
+  private_chat:{mode:el('privateMode').value,delay:el('privateDelay').value,max_auto_replies:el('privateMax').value,whitelist_max_auto_replies:el('privateWhiteMax').value,whitelist:lines('privateWhitelist'),blacklist:lines('privateBlacklist')},
+  groups:{mode:el('groupMode').value,delay:el('groupDelay').value,ignore_at_all:el('ignoreAtAll').checked,whitelist:groupRows(),blacklist:lines('groupBlacklist')},
+  group_reaction:{enabled:el('reactionEnabled').checked,mode:el('reactionMode').value,fallback_emoji:el('fallbackEmoji').value,fallback_text_emotion:el('fallbackTextEmotion').value,targeted_text_emotion:el('targetedTextEmotion').value,string_sender_ids:lines('stringSenderIds'),string_sender_names:lines('stringSenderNames'),timeout_seconds:el('reactionTimeout').value,text_emotions:textEmotionRows()},
+  identity:{name:el('identityName').value,owner_name:el('ownerName').value,self_introduction:el('selfIntro').value,private_ai_suffix:el('privateSuffix').value,group_ai_suffix:el('groupSuffix').value},
+  codex:{model:el('codexModel').value,reasoning_effort:el('reasoningEffort').value},
+  prompts:{personality:el('personality').value,custom_system:el('customSystem').value,ethics_boundary:el('ethicsBoundary').value,ethics_refusal:el('ethicsRefusal').value},
+  repository:{path:el('repoPath').value,allowed_paths:lines('allowedPaths'),remote:el('repoRemote').value,allow_fetch:el('allowFetch').checked}
+}}
+async function request(path,method='GET',body=null){const options={method};if(body!==null){options.headers=writeHeaders;options.body=JSON.stringify(body)}const r=await fetch(path,options);const j=await r.json();if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j}
+async function loadAll(){try{const [p,s,c,t,l]=await Promise.all([request('/api/preferences'),request('/api/status'),request('/api/config'),request('/api/tasks'),request('/api/logs?lines=120')]);fill(p);el('yaml').value=c.yaml;renderStatus(s);el('tasks').textContent=JSON.stringify(t.tasks,null,2);el('logs').textContent=l.text;show('配置与状态已加载')}catch(e){show('读取失败：'+e.message,true)}}
+function renderStatus(s){const paused=s.safety.paused;const enabled=s.safety.send_enabled;el('sendState').innerHTML=paused?'<span class="warnText">已暂停回复</span>':enabled?'<span class="bad">真实发送运行中（仅引用回复）</span>':'<span class="ok">真实发送关闭</span>';const ready=Object.values(s.listeners.ready||{}).filter(Boolean).length;const total=Object.keys(s.listeners.ready||{}).length;el('listenerState').textContent=`listeners ${ready}/${total} ready · scope ${s.safety.send_scope} · reply-only ${s.safety.reply_only?'on':'off'}`}
+async function savePreferences(){try{const prefs=collect();const rank={disabled:0,allowlist:1,all:2};let confirmation='';if((prefs.safety.send_enabled&&!originalSafety.send_enabled)||rank[prefs.safety.send_scope]>rank[originalSafety.send_scope]){confirmation=prompt('此操作会开启或扩大真实发送。请输入：确认开启真实发送')||''}await request('/api/preferences','PUT',{preferences:prefs,confirmation});show('基础配置已保存并开始热更新');setTimeout(loadAll,800)}catch(e){show('保存失败：'+e.message,true)}}
+async function saveYaml(){try{let body={yaml:el('yaml').value};try{await request('/api/config','PUT',body)}catch(e){if(!/enable real sending|broaden the real-send scope/.test(e.message))throw e;body.confirmation=prompt('此 YAML 会开启或扩大真实发送。请输入：确认开启真实发送')||'';await request('/api/config','PUT',body)}show('YAML 已保存并开始热更新');setTimeout(loadAll,800)}catch(e){show('保存失败：'+e.message,true)}}
+async function pauseReplies(){try{await request('/api/control/pause','POST',{});show('已暂停自动回复');setTimeout(loadAll,500)}catch(e){show(e.message,true)}}
+async function resumeReplies(){const confirmation=prompt('请输入：确认恢复回复')||'';try{await request('/api/control/resume','POST',{confirmation});show('已恢复自动回复');setTimeout(loadAll,500)}catch(e){show(e.message,true)}}
+async function restartService(){if(!confirm('确认优雅重启？页面会短暂断开约 3–5 秒。'))return;try{await request('/api/control/restart','POST',{});show('正在优雅重启…');setTimeout(()=>location.reload(),7000)}catch(e){show(e.message,true)}}
+async function disableSending(){if(!confirm('确认立即关闭真实发送？'))return;try{await request('/api/sending/disable','POST',{});show('真实发送已关闭');setTimeout(loadAll,500)}catch(e){show(e.message,true)}}
+loadAll();setInterval(async()=>{try{renderStatus(await request('/api/status'))}catch(e){}},5000);
+</script>
+</body>
+</html>

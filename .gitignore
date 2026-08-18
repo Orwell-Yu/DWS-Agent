@@ -1,0 +1,27 @@
+.DS_Store
+.venv/
+__pycache__/
+*.py[cod]
+
+# Local identity, credentials, state and logs
+config.yaml
+config.yaml.bak
+.env
+.env.*
+!.env.example
+.Codex/
+.codex/
+credentials.*
+.pypirc
+.npmrc
+*.pem
+*.key
+*.p12
+*.pfx
+.dws/
+state.sqlite3*
+logs/
+runtime/
+
+# Machine-specific launchd file
+com.*.plist

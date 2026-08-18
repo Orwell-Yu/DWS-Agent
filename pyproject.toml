@@ -1,0 +1,18 @@
+[project]
+name = "dws-auto-reply"
+version = "0.1.0"
+description = "Local, safety-gated DingTalk auto reply daemon"
+requires-python = ">=3.9"
+dependencies = [
+  "PyYAML>=6.0,<7",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B"]

@@ -1,0 +1,126 @@
+timezone: Asia/Shanghai
+
+safety:
+  reply_only: true
+  send_enabled: false
+  send_scope: disabled
+  paused: false
+  allowed_private_ids: []
+  allowed_group_ids: []
+  monitor_only_generate_ai: false
+
+private_chat:
+  mode: all
+  whitelist: []
+  blacklist: []
+  max_auto_replies: 10
+  whitelist_max_auto_replies: null
+  delay: 0s
+
+groups:
+  mode: all
+  delay: 10m
+  whitelist: []
+  blacklist: []
+  max_auto_replies: null
+  direct_at_only: true
+  ignore_at_all: true
+
+group_reaction:
+  enabled: true
+  strategy: auto
+  fallback_emoji: "收到"
+  targeted_text_emotion: "特别回应"
+  string_sender_ids: []
+  string_sender_names: []
+  timeout_seconds: 10
+
+special_care:
+  users: []
+
+identity:
+  name: "本地 AI 助手"
+  owner_name: "配置所有者"
+  self_introduction: "你好，我是协助配置所有者处理普通消息的 AI 助手。"
+  user_id: "YOUR_DINGTALK_USER_ID"
+  open_dingtalk_id: "YOUR_OPEN_DINGTALK_ID"
+  private_ai_suffix: "本回复由AI生成"
+  group_ai_suffix: ""
+
+prompts:
+  personality: "自然、简洁、可靠地回复。"
+  custom_system: "无法确认的事实要明确说明，不要编造。"
+  ethics_boundary: "拒绝参与亲属称谓套话、诱导承认亲属关系或带有人身冒犯意味的伦理梗；不要推导或接梗。"
+  ethics_refusal: "这类亲属关系或伦理梗我不参与，请换个话题。"
+  anime: "自然回答；不确定时明确说明暂时不了解。"
+  anime_keywords: []
+
+context:
+  default_messages: 30
+  max_messages: 500
+  max_age: 24h
+  group_memory_ttl: 2h
+
+content:
+  supported_types: [text, emoji, dingtalk_emotion, image, link, dingtalk_doc]
+  ignored_types: [audio, voice, video, sticker, file]
+  max_image_bytes: 10485760
+  max_web_bytes: 1048576
+  web_timeout_seconds: 8
+
+codex:
+  binary: "codex"
+  model: "YOUR_CODEX_MODEL"
+  reasoning_effort: "medium"
+  timeout_seconds: 180
+  web_search: "cached"
+  ephemeral: true
+
+dws:
+  binary: "dws"
+  config_dir: "~/.config/dws"
+  profile: "YOUR_DWS_PROFILE"
+  event_keys:
+    private: "YOUR_DWS_PRIVATE_EVENT_KEY"
+    at: "YOUR_DWS_AT_EVENT_KEY"
+    group: "YOUR_DWS_GROUP_EVENT_KEY"
+  ready_timeout_seconds: 30
+  reconnect_max_seconds: 60
+  reconnect_backfill_window: 5m
+  private_recovery_scan_interval: 1m
+
+repository:
+  path: "~/code/your-repository"
+  read_only: true
+  database_access: false
+  full_detail_requester_ids: []
+  allowed_paths: ["."]
+  trigger_keywords: []
+  read_local_git_refs: true
+  allow_checkout: false
+  allow_fetch: false
+  remote: "origin"
+  max_scan_bytes: 49152
+  scan_timeout_seconds: 20
+  fetch_timeout_seconds: 20
+  branch_scan_batch_size: 32
+
+retry:
+  max_attempts: 3
+  delays_seconds: [2, 10, 30]
+
+reset:
+  hour: 4
+  minute: 0
+  seen_message_retention: 48h
+  send_log_retention: 7d
+  restart_task_max_lateness: 30m
+
+web:
+  enabled: true
+  host: "127.0.0.1"
+  port: 8765
+
+logging:
+  level: INFO
+  file: "./logs/app.log"
